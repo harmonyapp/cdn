@@ -33,12 +33,20 @@ router.put("/avatars/:userId", avatarUpload.single("avatar"), async (req, res) =
     const { userId } = req.params;
     const imageHash = crypto.createHash("md5").update(req.file.buffer).digest("hex");
 
-    const avatarBuffer = await sharp(req.file.buffer)
-        .resize(256, 256, {
-            fit: "cover"
+    let avatarBuffer;
+
+    try {
+        avatarBuffer = await sharp(req.file.buffer)
+            .resize(256, 256, {
+                fit: "cover"
+            })
+            .png()
+            .toBuffer();
+    } catch (error) {
+        return res.status(400).send({
+            message: "Error while uploading avatar"
         })
-        .png()
-        .toBuffer();
+    }
 
     const {
         directory: outputDirectory,
