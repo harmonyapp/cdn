@@ -25,9 +25,9 @@ const avatarUpload = multer({
     }
 });
 
-router.put("/avatars/:userId", avatarUpload.single("avatar"), async (req, res) => {
+router.put("/avatars/:userId", avatarUpload.single("avatar"), async (req, res, next) => {
     if (!req.file) {
-        return res.status(400).send({ message: "File is required" });
+        return next("File is required");
     }
 
     const { userId } = req.params;
@@ -40,12 +40,13 @@ router.put("/avatars/:userId", avatarUpload.single("avatar"), async (req, res) =
             .resize(256, 256, {
                 fit: "cover"
             })
-            .png()
+            .webp()
             .toBuffer();
     } catch (error) {
         return res.status(400).send({
-            message: "Error while uploading avatar"
-        })
+            message: "Error while uploading avatar",
+            error: error.toString()
+        });
     }
 
     const {
@@ -63,7 +64,7 @@ router.put("/avatars/:userId", avatarUpload.single("avatar"), async (req, res) =
     }
 
     fs.mkdirSync(outputDirectory, { recursive: true });
-    fs.writeFileSync(outputPath + ".png", avatarBuffer);
+    fs.writeFileSync(outputPath + ".webp", avatarBuffer);
 
     return res.status(201).send({
         imageHash
