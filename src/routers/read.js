@@ -1,26 +1,56 @@
-import { Router } from "express";
+import Express, { Router } from "express";
+import path from "path";
 import fs from "fs";
-import { resolveAvatarPath } from "../helpers.js";
+import { resolveImageDirectory } from "../helpers.js";
+import { CDN_FOLDERS } from "../constants.js";
 
 const router = Router();
 
-router.get("/avatars/:userId/:imageHash.webp", (req, res) => {
-    const regex = /[a-zA-Z0-9\.]/;
+/**
+ * 
+ * @param {Express.Request} req 
+ * @param {Express.Response} res 
+ * @param {Express.NextFunction} next 
+ */
+function validateParams(req, res, next) {
+    const regex = /^[a-zA-Z0-9]+$/;
 
-    const userId = req.params.userId;
-    const imageHash = req.params.imageHash;
+    for (const param in req.params) {
+        const valid = regex.test(req.params[param]);
 
-    if (!regex.test(userId) || !regex.test(imageHash)) {
-        return res.status(400).send("Invalid userId or imageHash supplied.");
+        if (!valid) return res.status(400).send("Invalid parameters");
     }
 
-    const { path } = resolveAvatarPath(userId, imageHash + ".webp");
+    next();
+}
 
-    if (!fs.existsSync(path)) {
-        return res.status(404).send("File not found");
+/**
+ * 
+ * @param {import("./write.js").directoryResolver} directoryResolver
+ * @returns {Promise<Express.RequestHandler>}
+ */
+function readImageHandler(directoryResolver) {
+    /**
+     * @param {Express.Request} req
+     * @param {Express.Response} res
+     */
+    return function handler(req, res) {
+        const directory = directoryResolver(req);
+        const filename = req.params.imageHash + ".webp";
+        const fullPath = path.join(directory, filename);
+
+        console.debug("Resolved directory to", fullPath)
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).send("Image not found.");
+        }
+
+        return res.sendFile(fullPath);
     }
+}
 
-    return res.sendFile(path);
-});
+router.get("/avatars/:userId/:imageHash.webp", validateParams, readImageHandler((req) => resolveImageDirectory(CDN_FOLDERS.Avatars, req.params.userId)));
+
+router.get("/icons/:iconId/:imageHash.webp", validateParams, readImageHandler((req) => resolveImageDirectory(CDN_FOLDERS.Icons, req.params.iconId)));
 
 export default router;
