@@ -2,7 +2,7 @@ import Express, { Router } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "node:crypto";
-import multer from "multer";
+import multer, { MulterError } from "multer";
 import sharp from "sharp";
 import { resolveImageDirectory } from "../helpers.js";
 import { RESOURCES } from "../constants.js";
@@ -100,9 +100,13 @@ router.put("/icons/:resourceId",
 );
 
 router.use((err, req, res, next) => {
-    const message = err.includes("Invalid file") ? "Invalid file" : "Unknown error";
+    console.debug("Caught error:", err);
 
-    console.debug(err);
+    if (err instanceof MulterError) {
+        return res.status(400).send({ message: err.message });
+    }
+
+    const message = err.toString().includes("Invalid file") ? "Invalid file" : "Unknown error";
 
     res.status(400).send({ message });
 });
