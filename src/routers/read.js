@@ -2,7 +2,7 @@ import Express, { Router } from "express";
 import path from "path";
 import fs from "fs";
 import { resolveImageDirectory } from "../helpers.js";
-import { CDN_FOLDERS } from "../constants.js";
+import { RESOURCES } from "../constants.js";
 
 const router = Router();
 
@@ -26,20 +26,19 @@ function validateParams(req, res, next) {
 
 /**
  * 
- * @param {import("./write.js").directoryResolver} directoryResolver
+ * @param {Object} options
+ * @param {string} options.resource
  * @returns {Promise<Express.RequestHandler>}
  */
-function readImageHandler(directoryResolver) {
+function readImageHandler(options) {
     /**
-     * @param {Express.Request} req
+     * @param {Express.Request<{ resourceId: string; }>} req
      * @param {Express.Response} res
      */
     return function handler(req, res) {
-        const directory = directoryResolver(req);
+        const directory = resolveImageDirectory({ resource: options.resource, identifier: req.params.resourceId });
         const filename = req.params.imageHash + ".webp";
         const fullPath = path.join(directory, filename);
-
-        console.debug("Resolved directory to", fullPath)
 
         if (!fs.existsSync(fullPath)) {
             return res.status(404).send("Image not found.");
@@ -49,8 +48,8 @@ function readImageHandler(directoryResolver) {
     }
 }
 
-router.get("/avatars/:userId/:imageHash.webp", validateParams, readImageHandler((req) => resolveImageDirectory(CDN_FOLDERS.Avatars, req.params.userId)));
+router.get("/avatars/:resourceId/:imageHash.webp", validateParams, readImageHandler({ resource: RESOURCES.Avatars }));
 
-router.get("/icons/:iconId/:imageHash.webp", validateParams, readImageHandler((req) => resolveImageDirectory(CDN_FOLDERS.Icons, req.params.iconId)));
+router.get("/icons/:resourceId/:imageHash.webp", validateParams, readImageHandler({ resource: RESOURCES.Icons }));
 
 export default router;

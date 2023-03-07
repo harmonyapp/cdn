@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import multer from "multer";
 import sharp from "sharp";
 import { resolveImageDirectory } from "../helpers.js";
-import { CDN_FOLDERS } from "../constants.js";
+import { RESOURCES } from "../constants.js";
 
 const EIGHT_MB = 8000000;
 
@@ -28,25 +28,22 @@ const imageUpload = multer({
 });
 
 /**
- * @callback directoryResolver
- * @param {Express.Request} req
- * @returns {string}
- */
-
-/**
+ * A reusable function for handling image uploads
  * 
- * @param {directoryResolver} outputResolver
- * @param {boolean} singleton Whether or not we should clear the outputDirectory
+ * @param {Object} options
+ * @param {string} options.resource The type of resource to read
+ * @param {boolean} options.singleton A singleton resource means that there should only ever be one image in the directory at any given time
+ * 
  * @returns {Promise<Express.RequestHandler>}
  */
-function uploadImageHandler(outputResolver, singleton) {
+function uploadImageHandler(options) {
     /**
-     * @param {Express.Request} req
+     * @param {Express.Request<{ resourceId: string; }>} req
      * @param {Express.Response} res
      * @param {Express.NextFunction} next
      */
     return async function handler(req, res, next) {
-        const outputDirectory = outputResolver(req);
+        const outputDirectory = resolveImageDirectory({ resource: options.resource, identifier: req.params.resourceId });
 
         if (!req.file) {
             return next("File is required");
@@ -70,7 +67,7 @@ function uploadImageHandler(outputResolver, singleton) {
             });
         }
 
-        if (singleton === true) {
+        if (options.singleton === true) {
             const existingDirectory = fs.existsSync(outputDirectory);
 
             if (existingDirectory) {
@@ -92,14 +89,14 @@ function uploadImageHandler(outputResolver, singleton) {
     }
 }
 
-router.put("/avatars/:userId",
+router.put("/avatars/:resourceId",
     imageUpload.single("avatar"),
-    uploadImageHandler((req) => resolveImageDirectory(CDN_FOLDERS.Avatars, req.params.userId), true)
+    uploadImageHandler({ resource: RESOURCES.Avatars, singleton: true })
 );
 
-router.put("/icons/:serverId",
+router.put("/icons/:resourceId",
     imageUpload.single("icon"),
-    uploadImageHandler((req) => resolveImageDirectory(CDN_FOLDERS.Icons, req.params.serverId), true)
+    uploadImageHandler({ resource: RESOURCES.Icons, singleton: true })
 );
 
 router.use((err, req, res, next) => {
@@ -108,6 +105,6 @@ router.use((err, req, res, next) => {
     console.debug(err);
 
     res.status(400).send({ message });
-})
+});
 
 export default router;
