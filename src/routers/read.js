@@ -44,6 +44,10 @@ function readImageHandler(options) {
             return res.status(404).send("Image not found.");
         }
 
+        const FIVE_MINUTES = 60 * 5;
+
+        res.header("Cache-Control", "public, max-age=" + FIVE_MINUTES);
+
         return res.sendFile(fullPath);
     }
 }
