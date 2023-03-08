@@ -100,8 +100,6 @@ router.put("/icons/:resourceId",
 );
 
 router.use((err, req, res, next) => {
-    console.debug("Caught error:", err);
-
     if (err instanceof MulterError) {
         return res.status(400).send({ message: err.message });
     }
