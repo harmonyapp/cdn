@@ -54,8 +54,16 @@ function uploadImageHandler(options) {
         let buffer;
 
         try {
-            buffer = await sharp(req.file.buffer)
-                .resize(256, 256, {
+            const image = await sharp(req.file.buffer);
+            const metadata = await image.metadata();
+
+            // Cap the size to the smallest size of the two dimensions, but no larger than 512
+            const size = Math.min(512, metadata.height, metadata.width);
+
+            buffer = await image
+                .resize({
+                    width: size,
+                    height: size,
                     fit: "cover"
                 })
                 .webp()

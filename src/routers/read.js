@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import { resolveImageDirectory } from "../helpers.js";
 import { RESOURCES } from "../constants.js";
+import sharp from "sharp";
 
 const router = Router();
 
@@ -32,10 +33,10 @@ function validateParams(req, res, next) {
  */
 function readImageHandler(options) {
     /**
-     * @param {Express.Request<{ resourceId: string; }>} req
+     * @param {Express.Request<{ resourceId: string; imageHash: string; }>} req
      * @param {Express.Response} res
      */
-    return function handler(req, res) {
+    return async function handler(req, res) {
         const directory = resolveImageDirectory({ resource: options.resource, identifier: req.params.resourceId });
         const filename = req.params.imageHash + ".webp";
         const fullPath = path.join(directory, filename);
@@ -48,7 +49,34 @@ function readImageHandler(options) {
 
         res.header("Cache-Control", "public, max-age=" + FIVE_MINUTES);
 
-        return res.sendFile(fullPath);
+        const imageSizes = [64, 128, 256, 512];
+
+        if (!req.query.size) {
+            return res.sendFile(fullPath);
+        }
+
+        const sizeIndex = imageSizes.indexOf(+req.query.size);
+
+        if (sizeIndex === -1) {
+            return res.status(400).send({
+                message: "Invalid size parameter"
+            });
+        }
+
+        const requestedSize = imageSizes[sizeIndex];
+
+        const image = await sharp(fullPath);
+        const metadata = await image.metadata();
+
+        const size = Math.min(metadata.width, requestedSize);
+
+        const buffer = await sharp(fullPath).resize({
+            width: size,
+            height: size,
+            fit: "cover",
+        }).toBuffer();
+
+        return res.type("webp").send(buffer);
     }
 }
 
